@@ -1,13 +1,17 @@
 // File Path: /src/components/evidence-mapping/RequirementMappingPanel.tsx
-// Status: NEW FILE
+// Status: UPDATE
 // Description: Client-side interactive panel for mapping evidence documents
-//              to standard requirements. Renders the requirement hierarchy,
-//              flags each requirement Covered or Gap, and lets the user
-//              create, update, or remove a mapping inline.
+//              to standard requirements. Status per requirement is now
+//              Covered (full coverage + approved document) / In progress
+//              (a mapping exists but isn't full+approved yet, including
+//              AI-drafted-but-unreviewed documents) / Gap (no mapping).
+//              Gaps get an "AI Draft" button that generates a draft
+//              procedure via /api/requirements/[id]/draft and refreshes.
 
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 type Requirement = {
   id: string
@@ -40,14 +44,30 @@ type Props = {
   mappings: Mapping[]
 }
 
+type RequirementStatus = 'covered' | 'in_progress' | 'gap'
+
+const STATUS_LABEL: Record<RequirementStatus, string> = {
+  covered: 'Covered',
+  in_progress: 'In progress',
+  gap: 'Gap',
+}
+
+const STATUS_COLOR: Record<RequirementStatus, string> = {
+  covered: '#2e7d32',
+  in_progress: '#f9a825',
+  gap: '#c62828',
+}
+
 export function RequirementMappingPanel({
   organizationId,
   requirements,
   documents,
   mappings: initialMappings,
 }: Props) {
+  const router = useRouter()
+
   const [mappings, setMappings] = useState<Mapping[]>(initialMappings)
-  const [savingId, setSavingId] = useState<string | null>(null)
+  const [busyId, setBusyId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const mappingByRequirement = useMemo(() => {
@@ -57,6 +77,23 @@ export function RequirementMappingPanel({
     }
     return map
   }, [mappings])
+
+  const documentById = useMemo(() => {
+    const map = new Map<string, DocumentOption>()
+    for (const d of documents) {
+      map.set(d.id, d)
+    }
+    return map
+  }, [documents])
+
+  function statusFor(mapping: Mapping | undefined): RequirementStatus {
+    if (!mapping) return 'gap'
+    const doc = documentById.get(mapping.document_id)
+    if (mapping.coverage_status === 'full' && doc?.status === 'approved') {
+      return 'covered'
+    }
+    return 'in_progress'
+  }
 
   const topLevel = requirements
     .filter((r) => !r.parent_requirement_id)
@@ -72,19 +109,14 @@ export function RequirementMappingPanel({
     documentId: string,
     coverageStatus: Mapping['coverage_status']
   ) {
-    setSavingId(requirementId)
+    setBusyId(requirementId)
     setError(null)
 
     try {
       const res = await fetch('/api/evidence-mappings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          organizationId,
-          requirementId,
-          documentId,
-          coverageStatus,
-        }),
+        body: JSON.stringify({ organizationId, requirementId, documentId, coverageStatus }),
       })
 
       const responseBody = await res.json()
@@ -100,18 +132,16 @@ export function RequirementMappingPanel({
         return next
       })
     } finally {
-      setSavingId(null)
+      setBusyId(null)
     }
   }
 
   async function removeMapping(mappingId: string, requirementId: string) {
-    setSavingId(requirementId)
+    setBusyId(requirementId)
     setError(null)
 
     try {
-      const res = await fetch(`/api/evidence-mappings?id=${mappingId}`, {
-        method: 'DELETE',
-      })
+      const res = await fetch(`/api/evidence-mappings?id=${mappingId}`, { method: 'DELETE' })
 
       if (!res.ok) {
         const responseBody = await res.json()
@@ -121,12 +151,39 @@ export function RequirementMappingPanel({
 
       setMappings((prev) => prev.filter((m) => m.id !== mappingId))
     } finally {
-      setSavingId(null)
+      setBusyId(null)
+    }
+  }
+
+  async function aiDraft(requirementId: string) {
+    setBusyId(requirementId)
+    setError(null)
+
+    try {
+      const res = await fetch(`/api/requirements/${requirementId}/draft`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ organizationId }),
+      })
+
+      const responseBody = await res.json()
+
+      if (!res.ok) {
+        setError(responseBody.error ?? 'Failed to generate draft')
+        return
+      }
+
+      // A new document was created server-side; refresh so this page's
+      // server-fetched documents/mappings pick it up.
+      router.refresh()
+    } finally {
+      setBusyId(null)
     }
   }
 
   function renderRequirement(req: Requirement, depth: number) {
     const mapping = mappingByRequirement.get(req.id)
+    const status = statusFor(mapping)
     const children = childrenOf(req.id)
 
     return (
@@ -135,14 +192,14 @@ export function RequirementMappingPanel({
           style={{
             padding: '0.75rem',
             border: '1px solid #ddd',
-            borderLeft: `4px solid ${mapping ? '#2e7d32' : '#c62828'}`,
+            borderLeft: `4px solid ${STATUS_COLOR[status]}`,
             borderRadius: 4,
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
             <strong>{req.requirement_code}</strong>
-            <span style={{ fontSize: '0.8rem', color: mapping ? '#2e7d32' : '#c62828' }}>
-              {mapping ? 'Covered' : 'Gap'}
+            <span style={{ fontSize: '0.8rem', color: STATUS_COLOR[status] }}>
+              {STATUS_LABEL[status]}
             </span>
           </div>
           <div>{req.title}</div>
@@ -150,12 +207,20 @@ export function RequirementMappingPanel({
           <MappingForm
             mapping={mapping}
             documents={documents}
-            saving={savingId === req.id}
-            onSave={(documentId, coverageStatus) =>
-              saveMapping(req.id, documentId, coverageStatus)
-            }
+            saving={busyId === req.id}
+            onSave={(documentId, coverageStatus) => saveMapping(req.id, documentId, coverageStatus)}
             onRemove={mapping ? () => removeMapping(mapping.id, req.id) : undefined}
           />
+
+          {status === 'gap' && (
+            <button
+              disabled={busyId === req.id}
+              onClick={() => aiDraft(req.id)}
+              style={{ marginTop: '0.5rem' }}
+            >
+              {busyId === req.id ? 'Drafting…' : 'AI Draft this gap'}
+            </button>
+          )}
         </div>
 
         {children.map((child) => renderRequirement(child, depth + 1))}
@@ -191,11 +256,7 @@ function MappingForm({
 
   return (
     <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-      <select
-        value={documentId}
-        onChange={(e) => setDocumentId(e.target.value)}
-        style={{ flex: 1 }}
-      >
+      <select value={documentId} onChange={(e) => setDocumentId(e.target.value)} style={{ flex: 1 }}>
         <option value="">Select a document…</option>
         {documents.map((doc) => (
           <option key={doc.id} value={doc.id}>
