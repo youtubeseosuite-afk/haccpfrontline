@@ -1,0 +1,9 @@
+/* File Path: /src/app/globals.css */
+/* Status: NEW FILE */
+/* Description: Global stylesheet. Loads Tailwind's base, components, and
+   utilities layers — requires tailwind.config.ts and postcss.config.js
+   (next batch) to actually compile. */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
