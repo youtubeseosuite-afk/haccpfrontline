@@ -1,18 +1,15 @@
 // File Path: /src/app/api/documents/[id]/versions/[versionId]/ingest/route.ts
 // Status: UPDATE
-// Description: Extracts text from a document version, chunks it, embeds
-//              each chunk via the shared embedText() utility (now Voyage
-//              AI instead of a separate inline OpenAI call), and stores the
-//              results in document_chunks for RAG retrieval. Scope for this
-//              pass: plain text / markdown files only — PDF and DOCX
-//              extraction need a parsing library and are a follow-up.
+// Description: Extracts text from a document version — plain text,
+//              markdown, PDF, or DOCX, via extractText() — chunks it,
+//              embeds each chunk via embedText(), and stores the results in
+//              document_chunks for RAG retrieval.
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { chunkText } from '@/lib/rag/chunkText'
 import { embedText } from '@/lib/ai/embedText'
-
-const TEXT_MIME_TYPES = ['text/plain', 'text/markdown']
+import { extractText, isSupportedForExtraction } from '@/lib/rag/extractText'
 
 export async function POST(
   request: NextRequest,
@@ -46,12 +43,12 @@ export async function POST(
     return NextResponse.json({ error: 'Document not found' }, { status: 404 })
   }
 
-  if (!version.mime_type || !TEXT_MIME_TYPES.includes(version.mime_type)) {
+  if (!isSupportedForExtraction(version.mime_type)) {
     return NextResponse.json(
       {
-        error: `Ingestion currently only supports plain text/markdown files (got ${
+        error: `Ingestion doesn't support this file type yet (${
           version.mime_type ?? 'unknown'
-        })`,
+        }). Supported: plain text, markdown, PDF, DOCX.`,
       },
       { status: 400 }
     )
@@ -68,7 +65,16 @@ export async function POST(
     )
   }
 
-  const text = await fileBlob.text()
+  let text: string
+  try {
+    text = await extractText(fileBlob, version.mime_type)
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Text extraction failed' },
+      { status: 400 }
+    )
+  }
+
   const chunks = chunkText(text)
 
   if (chunks.length === 0) {
