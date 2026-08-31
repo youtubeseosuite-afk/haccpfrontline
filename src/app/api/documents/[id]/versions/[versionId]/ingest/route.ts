@@ -1,7 +1,8 @@
 // File Path: /src/app/api/documents/[id]/versions/[versionId]/ingest/route.ts
-// Status: NEW FILE
+// Status: UPDATE
 // Description: Extracts text from a document version, chunks it, embeds
-//              each chunk via the OpenAI embeddings API, and stores the
+//              each chunk via the shared embedText() utility (now Voyage
+//              AI instead of a separate inline OpenAI call), and stores the
 //              results in document_chunks for RAG retrieval. Scope for this
 //              pass: plain text / markdown files only — PDF and DOCX
 //              extraction need a parsing library and are a follow-up.
@@ -9,8 +10,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { chunkText } from '@/lib/rag/chunkText'
+import { embedText } from '@/lib/ai/embedText'
 
-const EMBEDDING_MODEL = 'text-embedding-3-small'
 const TEXT_MIME_TYPES = ['text/plain', 'text/markdown']
 
 export async function POST(
@@ -77,28 +78,8 @@ export async function POST(
   const embeddings: number[][] = []
 
   for (const chunk of chunks) {
-    const response = await fetch('https://api.openai.com/v1/embeddings', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: EMBEDDING_MODEL,
-        input: chunk.content,
-      }),
-    })
-
-    if (!response.ok) {
-      const errorBody = await response.text()
-      return NextResponse.json(
-        { error: `Embedding request failed: ${errorBody}` },
-        { status: 502 }
-      )
-    }
-
-    const body = await response.json()
-    embeddings.push(body.data[0].embedding)
+    const embedding = await embedText(chunk.content, 'document')
+    embeddings.push(embedding)
   }
 
   // Replace any existing chunks for this version. Text never changes after
