@@ -1,8 +1,9 @@
 // File Path: /src/app/dashboard/page.tsx
-// Status: NEW FILE
+// Status: UPDATE
 // Description: Compliance Dashboard — lists every standard visible to the
 //              user's organization with a computed compliance score, via
-//              the compliance_score() RPC.
+//              the compliance_score() RPC. Each card now links separately
+//              to the mapping page and the new Audit-Ready Report page.
 
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
@@ -68,26 +69,27 @@ export default async function DashboardPage() {
       {scored.length === 0 && <p>No standards available yet.</p>}
 
       {scored.map(({ standard, total, covered, percentage, error }) => (
-        <Link
+        <div
           key={standard.id}
-          href={`/standards/${standard.id}`}
-          style={{ textDecoration: 'none', color: 'inherit' }}
+          style={{ padding: '1rem', border: '1px solid #ddd', borderRadius: 6, marginBottom: '1rem' }}
         >
-          <div style={{ padding: '1rem', border: '1px solid #ddd', borderRadius: 6, marginBottom: '1rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <strong>{standard.name} {standard.version}</strong>
-              <span>{percentage}%</span>
-            </div>
-            <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.5rem' }}>
-              {covered} of {total} requirements covered
-            </div>
-            {error ? (
-              <p style={{ color: '#c62828' }}>{error}</p>
-            ) : (
-              <ComplianceScoreBar percentage={percentage} />
-            )}
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <strong>{standard.name} {standard.version}</strong>
+            <span>{percentage}%</span>
           </div>
-        </Link>
+          <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.5rem' }}>
+            {covered} of {total} requirements covered
+          </div>
+          {error ? (
+            <p style={{ color: '#c62828' }}>{error}</p>
+          ) : (
+            <ComplianceScoreBar percentage={percentage} />
+          )}
+          <div style={{ marginTop: '0.75rem', display: 'flex', gap: '1rem' }}>
+            <Link href={`/standards/${standard.id}`}>Manage evidence →</Link>
+            <Link href={`/reports/${standard.id}`}>View report →</Link>
+          </div>
+        </div>
       ))}
     </main>
   )
