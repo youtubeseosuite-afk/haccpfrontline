@@ -1,18 +1,22 @@
 // File Path: /src/components/evidence-mapping/RequirementMappingPanel.tsx
 // Status: UPDATE
 // Description: Client-side interactive panel for mapping evidence documents
-// to standard requirements, now rendered as a collapsible accordion tree
-// instead of always-expanded nesting. Status per requirement is Compliant
-// (full coverage + approved document) / Partial Gap (a mapping exists but
-// isn't full+approved yet, including AI-drafted-but-unreviewed documents) /
-// Critical Gap (no mapping). Gaps get an "AI Draft" button that generates a
-// draft procedure via /api/requirements/[id]/draft and refreshes. Top-level
-// requirements open by default; nested children start collapsed.
+// to standard requirements, rendered as a collapsible accordion tree. Status
+// per requirement is Compliant (full coverage + approved document) /
+// Partial Gap (a mapping exists but isn't full+approved yet, including
+// AI-drafted-but-unreviewed documents) / Critical Gap (no mapping). Gaps get
+// an "AI Draft" button that generates a draft procedure via
+// /api/requirements/[id]/draft and refreshes. Now also links each
+// requirement's code to its Analysis View (/requirements/[id]) so the
+// split-screen evidence + AI-conclusion panel is reachable from the
+// checklist. Top-level requirements open by default; nested children start
+// collapsed.
 
 'use client'
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 type Requirement = {
   id: string
@@ -289,9 +293,17 @@ function RequirementNode({
             </span>
           </button>
 
-          <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${badge}`}>
-            {STATUS_LABEL[status]}
-          </span>
+          <div className="flex shrink-0 items-center gap-2">
+            <Link
+              href={`/requirements/${requirement.id}`}
+              className="text-xs font-medium text-slate-500 hover:text-slate-800"
+            >
+              Analyze →
+            </Link>
+            <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${badge}`}>
+              {STATUS_LABEL[status]}
+            </span>
+          </div>
         </div>
 
         <MappingForm
