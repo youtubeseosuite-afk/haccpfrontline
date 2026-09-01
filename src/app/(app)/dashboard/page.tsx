@@ -1,10 +1,13 @@
 // File Path: /src/app/(app)/dashboard/page.tsx
-// Status: NEW FILE
+// Status: UPDATE
 // Description: Control Tower — the main authenticated hub. Shows one
 // overall compliance donut aggregated across every standard visible to the
 // org, a "Top 3 Critical Gaps" list ranked by risk_weight, and per-standard
-// score cards below. Moved under the (app) route group so it renders inside
-// AppShell.
+// score cards below. Fix: without generated Supabase Database types, the
+// client's select-string type inference treats every nested embed as an
+// array — including the doubly-nested evidence_mappings.documents relation
+// — so RequirementRow and the gap filter now read documents as an array
+// instead of a single object.
 
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
@@ -19,7 +22,9 @@ type RequirementRow = {
   title: string
   risk_weight: number
   standards: { id: string; name: string } | { id: string; name: string }[] | null
-  evidence_mappings: { coverage_status: string; documents: { status: string } | null }[] | null
+  evidence_mappings:
+    | { coverage_status: string; documents: { status: string }[] | null }[]
+    | null
 }
 
 export default async function DashboardPage() {
@@ -95,7 +100,7 @@ export default async function DashboardPage() {
     .filter((req) => {
       const mappings = req.evidence_mappings ?? []
       return !mappings.some(
-        (m) => m.coverage_status === 'full' && m.documents?.status === 'approved'
+        (m) => m.coverage_status === 'full' && m.documents?.[0]?.status === 'approved'
       )
     })
     .slice(0, 3)
