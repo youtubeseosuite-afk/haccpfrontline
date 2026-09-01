@@ -1,9 +1,14 @@
 // File Path: /src/app/api/documents/route.ts
-// Status: NEW FILE
+// Status: UPDATE
 // Description: List documents for an organization (GET) and create a new
 //              document with its first version (POST). The file is uploaded
 //              to the `documents` Storage bucket and a matching
 //              document_versions row is created with status='draft'.
+//              Fix: the POST handler created the version but never pointed
+//              documents.current_version_id at it, so every uploaded
+//              document was invisible to gap-analysis (which reads chunks
+//              via current_version_id). Now sets it right after the version
+//              is created.
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
@@ -126,5 +131,20 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  return NextResponse.json({ document, version }, { status: 201 })
+  const { error: pointerError } = await supabase
+    .from('documents')
+    .update({ current_version_id: version.id })
+    .eq('id', document.id)
+
+  if (pointerError) {
+    // The document and version both exist and are individually usable —
+    // don't roll back a successful upload over this. Just surface it, since
+    // gap-analysis won't find this version until current_version_id is set.
+    console.error('Failed to set current_version_id:', pointerError.message)
+  }
+
+  return NextResponse.json(
+    { document: { ...document, current_version_id: version.id }, version },
+    { status: 201 }
+  )
 }
