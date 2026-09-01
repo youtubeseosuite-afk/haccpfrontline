@@ -7,13 +7,16 @@
 //              inputType should be 'document' when embedding chunks for
 //              storage and 'query' when embedding a search query — Voyage
 //              uses this to improve retrieval quality.
+//              Now returns { embedding, tokens } instead of a bare array so
+//              callers can log token usage to ai_usage_events. Both call
+//              sites (gap-analysis, ingest) are updated for this shape.
 
 const EMBEDDING_MODEL = 'voyage-3.5'
 
 export async function embedText(
   text: string,
   inputType: 'query' | 'document' = 'document'
-): Promise<number[]> {
+): Promise<{ embedding: number[]; tokens: number }> {
   const response = await fetch('https://api.voyageai.com/v1/embeddings', {
     method: 'POST',
     headers: {
@@ -33,5 +36,8 @@ export async function embedText(
   }
 
   const body = await response.json()
-  return body.data[0].embedding as number[]
+  return {
+    embedding: body.data[0].embedding as number[],
+    tokens: body.usage?.total_tokens ?? 0,
+  }
 }
