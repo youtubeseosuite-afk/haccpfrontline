@@ -3,12 +3,12 @@
 // Description: DMS entry point — the Document Library. Lists every document
 // for the org (synced by the Local Agent or uploaded here directly) with
 // its type, status, chapter tag, and version count. Hosts the upload form.
-// Approval workflow (draft -> approved) isn't wired up yet — this first
-// pass is about seeing what's there, per the stated task scope.
+// Approve and Download actions are wired via DocumentActions.
 
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { DocumentUploadForm } from '@/components/documents/DocumentUploadForm'
+import { DocumentActions } from '@/components/documents/DocumentActions'
 
 type DocumentRow = {
   id: string
@@ -24,6 +24,7 @@ type DocumentRow = {
 
 const STATUS_CLASSES: Record<string, string> = {
   approved: 'bg-green-100 text-green-700',
+  in_review: 'bg-amber-100 text-amber-700',
   draft: 'bg-amber-100 text-amber-700',
   archived: 'bg-slate-100 text-slate-500',
 }
@@ -97,6 +98,9 @@ export default async function DocumentsPage() {
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                 Updated
               </th>
+              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-slate-500">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -126,11 +130,18 @@ export default async function DocumentsPage() {
                 <td className="px-4 py-3 text-sm text-slate-500">
                   {new Date(doc.updated_at).toLocaleDateString()}
                 </td>
+                <td className="px-4 py-3">
+                  {doc.current_version_id ? (
+                    <DocumentActions documentId={doc.id} status={doc.status} />
+                  ) : (
+                    <span className="block text-right text-xs text-slate-400">No file</span>
+                  )}
+                </td>
               </tr>
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-sm text-slate-500">
+                <td colSpan={6} className="px-4 py-6 text-center text-sm text-slate-500">
                   No documents yet — upload one, or install the Local Agent to sync your folder.
                 </td>
               </tr>
