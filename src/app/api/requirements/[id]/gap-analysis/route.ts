@@ -7,12 +7,15 @@
 //              excerpts — for a grounded compliant / partial / non_compliant
 //              verdict. Does not modify the evidence_mapping or persist the
 //              excerpts/response anywhere; it just returns the verdict.
-//              Now embeds the requirement text with input_type='query' to
-//              match how embedText() expects retrieval queries to be tagged.
+//              Embeds the requirement text with input_type='query' to match
+//              how embedText() expects retrieval queries to be tagged.
+//              Now also logs the query embedding call and the Claude judge
+//              call to ai_usage_events for the Owner Dashboard cost monitor.
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { embedText } from '@/lib/ai/embedText'
+import { logAiUsage } from '@/lib/ai/logAiUsage'
 
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL
 
@@ -98,7 +101,19 @@ export async function POST(
   }
 
   const queryText = `${requirement.requirement_code} ${requirement.title}. ${requirement.description ?? ''}`
-  const queryEmbedding = await embedText(queryText, 'query')
+  const { embedding: queryEmbedding, tokens: embeddingTokens } = await embedText(
+    queryText,
+    'query'
+  )
+
+  await logAiUsage({
+    organizationId,
+    eventType: 'embedding',
+    model: 'voyage-3.5',
+    inputTokens: embeddingTokens,
+    outputTokens: 0,
+    userId: user.id,
+  })
 
   const { data: chunks, error: matchError } = await supabase.rpc('match_document_chunks', {
     p_document_version_id: document.current_version_id,
@@ -154,6 +169,15 @@ ${excerptsBlock}`
 
   const anthropicBody = await anthropicResponse.json()
   const rawText = anthropicBody.content?.[0]?.text ?? ''
+
+  await logAiUsage({
+    organizationId,
+    eventType: 'gap_analysis',
+    model: ANTHROPIC_MODEL,
+    inputTokens: anthropicBody.usage?.input_tokens ?? 0,
+    outputTokens: anthropicBody.usage?.output_tokens ?? 0,
+    userId: user.id,
+  })
 
   let verdict
   try {
