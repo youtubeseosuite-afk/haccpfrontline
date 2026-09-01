@@ -3,13 +3,17 @@
 // Description: Extracts text from a document version — plain text,
 //              markdown, PDF, or DOCX, via extractText() — chunks it,
 //              embeds each chunk via embedText(), and stores the results in
-//              document_chunks for RAG retrieval.
+//              document_chunks for RAG retrieval. Now logs the total
+//              embedding token usage for the run to ai_usage_events for the
+//              Owner Dashboard cost monitor, and matches embedText()'s
+//              updated { embedding, tokens } return shape.
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { chunkText } from '@/lib/rag/chunkText'
 import { embedText } from '@/lib/ai/embedText'
 import { extractText, isSupportedForExtraction } from '@/lib/rag/extractText'
+import { logAiUsage } from '@/lib/ai/logAiUsage'
 
 export async function POST(
   request: NextRequest,
@@ -82,11 +86,22 @@ export async function POST(
   }
 
   const embeddings: number[][] = []
+  let totalEmbeddingTokens = 0
 
   for (const chunk of chunks) {
-    const embedding = await embedText(chunk.content, 'document')
+    const { embedding, tokens } = await embedText(chunk.content, 'document')
     embeddings.push(embedding)
+    totalEmbeddingTokens += tokens
   }
+
+  await logAiUsage({
+    organizationId: document.organization_id,
+    eventType: 'embedding',
+    model: 'voyage-3.5',
+    inputTokens: totalEmbeddingTokens,
+    outputTokens: 0,
+    userId: user.id,
+  })
 
   // Replace any existing chunks for this version. Text never changes after
   // upload, but re-running ingestion should still be idempotent.
