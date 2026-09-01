@@ -1,13 +1,12 @@
 // File Path: /src/components/layout/AppShell.tsx
-// Status: NEW FILE
+// Status: UPDATE
 // Description: Authenticated app chrome — a collapsible left sidebar plus a
-// top nav bar, wrapping page content. Client component so the collapse
-// state and sign-out button work; the auth check itself stays server-side
-// wherever this is used (mirroring requireAdmin() for /admin), wired in via
-// the (app) route-group layout added in Step 2 alongside moving the
-// Dashboard page over. isAdmin is optional and only shows the Admin nav
-// link when true — the caller passes it after checking is_platform_admin()
-// server-side.
+// top nav bar, wrapping page content. Now used by both the (app) route
+// group and /admin/layout.tsx, so when isAdmin is true the sidebar shows
+// the three Owner Dashboard sections (Tenants, AI Usage, Standards)
+// alongside Dashboard, instead of one generic "Admin" link. Client
+// component so the collapse state and sign-out button work; the auth check
+// itself stays server-side wherever this is used.
 
 'use client'
 
@@ -21,7 +20,13 @@ type NavItem = {
   href: string
 }
 
-const NAV_ITEMS: NavItem[] = [{ label: 'Dashboard', href: '/dashboard' }]
+const BASE_NAV_ITEMS: NavItem[] = [{ label: 'Dashboard', href: '/dashboard' }]
+
+const ADMIN_NAV_ITEMS: NavItem[] = [
+  { label: 'Tenants', href: '/admin/tenants' },
+  { label: 'AI Usage', href: '/admin/usage' },
+  { label: 'Standards', href: '/admin/standards' },
+]
 
 export function AppShell({
   children,
@@ -39,9 +44,7 @@ export function AppShell({
   const router = useRouter()
   const supabase = createClient()
 
-  const navItems = isAdmin
-    ? [...NAV_ITEMS, { label: 'Admin', href: '/admin/tenants' }]
-    : NAV_ITEMS
+  const navItems = isAdmin ? [...BASE_NAV_ITEMS, ...ADMIN_NAV_ITEMS] : BASE_NAV_ITEMS
 
   async function handleSignOut() {
     await supabase.auth.signOut()
