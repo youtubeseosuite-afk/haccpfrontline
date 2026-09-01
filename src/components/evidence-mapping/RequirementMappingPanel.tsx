@@ -1,12 +1,13 @@
 // File Path: /src/components/evidence-mapping/RequirementMappingPanel.tsx
 // Status: UPDATE
 // Description: Client-side interactive panel for mapping evidence documents
-//              to standard requirements. Status per requirement is now
-//              Covered (full coverage + approved document) / In progress
-//              (a mapping exists but isn't full+approved yet, including
-//              AI-drafted-but-unreviewed documents) / Gap (no mapping).
-//              Gaps get an "AI Draft" button that generates a draft
-//              procedure via /api/requirements/[id]/draft and refreshes.
+// to standard requirements, now rendered as a collapsible accordion tree
+// instead of always-expanded nesting. Status per requirement is Compliant
+// (full coverage + approved document) / Partial Gap (a mapping exists but
+// isn't full+approved yet, including AI-drafted-but-unreviewed documents) /
+// Critical Gap (no mapping). Gaps get an "AI Draft" button that generates a
+// draft procedure via /api/requirements/[id]/draft and refreshes. Top-level
+// requirements open by default; nested children start collapsed.
 
 'use client'
 
@@ -47,15 +48,15 @@ type Props = {
 type RequirementStatus = 'covered' | 'in_progress' | 'gap'
 
 const STATUS_LABEL: Record<RequirementStatus, string> = {
-  covered: 'Covered',
-  in_progress: 'In progress',
-  gap: 'Gap',
+  covered: 'Compliant',
+  in_progress: 'Partial Gap',
+  gap: 'Critical Gap',
 }
 
-const STATUS_COLOR: Record<RequirementStatus, string> = {
-  covered: '#2e7d32',
-  in_progress: '#f9a825',
-  gap: '#c62828',
+const STATUS_CLASSES: Record<RequirementStatus, { border: string; badge: string }> = {
+  covered: { border: 'border-l-green-500', badge: 'bg-green-100 text-green-700' },
+  in_progress: { border: 'border-l-amber-500', badge: 'bg-amber-100 text-amber-700' },
+  gap: { border: 'border-l-red-500', badge: 'bg-red-100 text-red-700' },
 }
 
 export function RequirementMappingPanel({
@@ -181,57 +182,159 @@ export function RequirementMappingPanel({
     }
   }
 
-  function renderRequirement(req: Requirement, depth: number) {
-    const mapping = mappingByRequirement.get(req.id)
-    const status = statusFor(mapping)
-    const children = childrenOf(req.id)
+  return (
+    <div className="space-y-3">
+      {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+      {topLevel.map((req) => (
+        <RequirementNode
+          key={req.id}
+          requirement={req}
+          depth={0}
+          childrenOf={childrenOf}
+          mappingByRequirement={mappingByRequirement}
+          status={statusFor(mappingByRequirement.get(req.id))}
+          statusFor={statusFor}
+          documents={documents}
+          busyId={busyId}
+          onSave={saveMapping}
+          onRemove={removeMapping}
+          onAiDraft={aiDraft}
+        />
+      ))}
+    </div>
+  )
+}
 
-    return (
-      <div key={req.id} style={{ marginLeft: depth * 20, marginBottom: '0.75rem' }}>
-        <div
-          style={{
-            padding: '0.75rem',
-            border: '1px solid #ddd',
-            borderLeft: `4px solid ${STATUS_COLOR[status]}`,
-            borderRadius: 4,
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <strong>{req.requirement_code}</strong>
-            <span style={{ fontSize: '0.8rem', color: STATUS_COLOR[status] }}>
-              {STATUS_LABEL[status]}
-            </span>
-          </div>
-          <div>{req.title}</div>
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      className={`shrink-0 text-slate-400 transition-transform ${open ? 'rotate-90' : ''}`}
+    >
+      <path
+        d="M6 4l4 4-4 4"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
 
-          <MappingForm
-            mapping={mapping}
-            documents={documents}
-            saving={busyId === req.id}
-            onSave={(documentId, coverageStatus) => saveMapping(req.id, documentId, coverageStatus)}
-            onRemove={mapping ? () => removeMapping(mapping.id, req.id) : undefined}
-          />
-
-          {status === 'gap' && (
-            <button
-              disabled={busyId === req.id}
-              onClick={() => aiDraft(req.id)}
-              style={{ marginTop: '0.5rem' }}
-            >
-              {busyId === req.id ? 'Drafting…' : 'AI Draft this gap'}
-            </button>
-          )}
-        </div>
-
-        {children.map((child) => renderRequirement(child, depth + 1))}
-      </div>
-    )
-  }
+function RequirementNode({
+  requirement,
+  depth,
+  childrenOf,
+  mappingByRequirement,
+  status,
+  statusFor,
+  documents,
+  busyId,
+  onSave,
+  onRemove,
+  onAiDraft,
+}: {
+  requirement: Requirement
+  depth: number
+  childrenOf: (parentId: string) => Requirement[]
+  mappingByRequirement: Map<string, Mapping>
+  status: RequirementStatus
+  statusFor: (mapping: Mapping | undefined) => RequirementStatus
+  documents: DocumentOption[]
+  busyId: string | null
+  onSave: (
+    requirementId: string,
+    documentId: string,
+    coverageStatus: Mapping['coverage_status']
+  ) => void
+  onRemove: (mappingId: string, requirementId: string) => void
+  onAiDraft: (requirementId: string) => void
+}) {
+  const children = childrenOf(requirement.id)
+  const hasChildren = children.length > 0
+  const [expanded, setExpanded] = useState(depth === 0)
+  const mapping = mappingByRequirement.get(requirement.id)
+  const { border, badge } = STATUS_CLASSES[status]
 
   return (
-    <div>
-      {error && <p style={{ color: '#c62828' }}>{error}</p>}
-      {topLevel.map((req) => renderRequirement(req, 0))}
+    <div className={depth > 0 ? 'ml-5 border-l border-slate-200 pl-4' : ''}>
+      <div
+        className={`rounded-lg border border-l-4 border-slate-200 bg-white p-4 shadow-sm ${border}`}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => hasChildren && setExpanded((e) => !e)}
+            className={`flex flex-1 items-start gap-2 text-left ${
+              hasChildren ? 'cursor-pointer' : 'cursor-default'
+            }`}
+          >
+            {hasChildren ? (
+              <span className="mt-0.5">
+                <ChevronIcon open={expanded} />
+              </span>
+            ) : (
+              <span className="mt-0.5 w-4" />
+            )}
+            <span>
+              <span className="font-medium text-slate-900">{requirement.requirement_code}</span>{' '}
+              <span className="text-slate-700">{requirement.title}</span>
+              {requirement.description && (
+                <p className="mt-1 text-sm text-slate-500">{requirement.description}</p>
+              )}
+            </span>
+          </button>
+
+          <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${badge}`}>
+            {STATUS_LABEL[status]}
+          </span>
+        </div>
+
+        <MappingForm
+          mapping={mapping}
+          documents={documents}
+          saving={busyId === requirement.id}
+          onSave={(documentId, coverageStatus) =>
+            onSave(requirement.id, documentId, coverageStatus)
+          }
+          onRemove={mapping ? () => onRemove(mapping.id, requirement.id) : undefined}
+        />
+
+        {status === 'gap' && (
+          <button
+            disabled={busyId === requirement.id}
+            onClick={() => onAiDraft(requirement.id)}
+            className="mt-3 rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          >
+            {busyId === requirement.id ? 'Drafting…' : 'AI Draft this gap'}
+          </button>
+        )}
+      </div>
+
+      {hasChildren && expanded && (
+        <div className="mt-3 space-y-3">
+          {children.map((child) => (
+            <RequirementNode
+              key={child.id}
+              requirement={child}
+              depth={depth + 1}
+              childrenOf={childrenOf}
+              mappingByRequirement={mappingByRequirement}
+              status={statusFor(mappingByRequirement.get(child.id))}
+              statusFor={statusFor}
+              documents={documents}
+              busyId={busyId}
+              onSave={onSave}
+              onRemove={onRemove}
+              onAiDraft={onAiDraft}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -255,12 +358,17 @@ function MappingForm({
   )
 
   return (
-    <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-      <select value={documentId} onChange={(e) => setDocumentId(e.target.value)} style={{ flex: 1 }}>
+    <div className="mt-3 flex flex-wrap items-center gap-2">
+      <select
+        value={documentId}
+        onChange={(e) => setDocumentId(e.target.value)}
+        className="min-w-[180px] flex-1 rounded-md border border-slate-300 px-2.5 py-1.5 text-sm text-slate-700 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+      >
         <option value="">Select a document…</option>
         {documents.map((doc) => (
           <option key={doc.id} value={doc.id}>
-            {doc.title}{doc.status !== 'approved' ? ` (${doc.status})` : ''}
+            {doc.title}
+            {doc.status !== 'approved' ? ` (${doc.status})` : ''}
           </option>
         ))}
       </select>
@@ -268,18 +376,27 @@ function MappingForm({
       <select
         value={coverageStatus}
         onChange={(e) => setCoverageStatus(e.target.value as Mapping['coverage_status'])}
+        className="rounded-md border border-slate-300 px-2.5 py-1.5 text-sm text-slate-700 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
       >
         <option value="full">Full</option>
         <option value="partial">Partial</option>
         <option value="planned">Planned</option>
       </select>
 
-      <button disabled={!documentId || saving} onClick={() => onSave(documentId, coverageStatus)}>
+      <button
+        disabled={!documentId || saving}
+        onClick={() => onSave(documentId, coverageStatus)}
+        className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+      >
         {mapping ? 'Update' : 'Map'}
       </button>
 
       {onRemove && (
-        <button disabled={saving} onClick={onRemove}>
+        <button
+          disabled={saving}
+          onClick={onRemove}
+          className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
+        >
           Remove
         </button>
       )}
