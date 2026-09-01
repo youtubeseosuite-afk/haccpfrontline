@@ -20,7 +20,10 @@ type NavItem = {
   href: string
 }
 
-const BASE_NAV_ITEMS: NavItem[] = [{ label: 'Dashboard', href: '/dashboard' }]
+const BASE_NAV_ITEMS: NavItem[] = [
+  { label: 'Dashboard', href: '/dashboard' },
+  { label: 'Documents', href: '/documents' },
+]
 
 const ADMIN_NAV_ITEMS: NavItem[] = [
   { label: 'Tenants', href: '/admin/tenants' },
