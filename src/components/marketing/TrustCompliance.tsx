@@ -1,11 +1,13 @@
 // File Path: /src/components/marketing/TrustCompliance.tsx
-// Status: NEW FILE
+// Status: UPDATE
 // Description: The "Trust & Compliance" section. Deliberately the first
 // dark panel on the page (bg-slate-900) — a visual register shift that
 // signals weight right where the copy is about security and standards,
-// distinct from the lighter sections around it. Left: the Hybrid Model
-// (Local Sync Agent -> encrypted -> Cloud AI, zero retention). Right: the
-// three standards the product supports.
+// distinct from the lighter sections around it. Left: what's actually true
+// today — encrypted storage, strict per-organization isolation via RLS,
+// on-demand AI analysis — not the local-only Local Sync Agent from the
+// original draft, which doesn't exist yet. Right: the three standards the
+// product supports.
 
 const STANDARDS = [
   { code: 'ISO 9001', label: 'Quality Management Systems' },
@@ -24,24 +26,24 @@ export function TrustCompliance() {
           </div>
 
           <h2 className="text-3xl font-bold tracking-tight text-white">
-            Your documents never leave your infrastructure.
+            Every document is encrypted, isolated, and yours alone.
           </h2>
           <p className="mt-4 leading-relaxed text-slate-400">
-            Built on a Hybrid Model: a secure Local Sync Agent extracts and analyzes your
-            documents on your own server. Only what&rsquo;s needed for AI analysis is sent to
-            the cloud, and nothing is retained. Total data sovereignty, without sacrificing
-            intelligence.
+            Every file is encrypted at rest and in transit, and strictly isolated to your
+            organization &mdash; no other company on the platform can ever see your data. When
+            AI analysis runs, only the specific excerpts it needs are sent for processing over
+            an encrypted connection, on demand, at your request.
           </p>
 
           <div className="mt-8 flex items-center gap-3 text-sm text-slate-300">
             <div className="flex flex-1 items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-4 py-3">
-              <ServerIcon />
-              Local Sync Agent
+              <LockIcon />
+              Encrypted Storage
             </div>
             <div className="text-slate-600">&rarr;</div>
             <div className="flex flex-1 items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-4 py-3">
               <CloudIcon />
-              Cloud AI &middot; Zero Retention
+              AI Analysis &middot; On-Demand
             </div>
           </div>
         </div>
@@ -83,13 +85,12 @@ function ShieldIcon() {
   )
 }
 
-function ServerIcon() {
+function LockIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="shrink-0 text-slate-400">
-      <rect x="3" y="3" width="12" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.3" />
-      <rect x="3" y="10.5" width="12" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.3" />
-      <circle cx="5.5" cy="5.25" r="0.6" fill="currentColor" />
-      <circle cx="5.5" cy="12.75" r="0.6" fill="currentColor" />
+      <rect x="4" y="8" width="10" height="7" rx="1.3" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M6 8V6a3 3 0 016 0v2" stroke="currentColor" strokeWidth="1.3" />
+      <circle cx="9" cy="11.5" r="1" fill="currentColor" />
     </svg>
   )
 }
