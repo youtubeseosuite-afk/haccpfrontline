@@ -1,12 +1,15 @@
 // File Path: /src/app/admin/standards/page.tsx
-// Status: NEW FILE
+// Status: UPDATE
 // Description: Owner Dashboard standards manager. Lists every global
-// standard (organization_id is null) with its requirement count, and hosts
-// the JSON import form for adding new curated templates like ISO 9001.
+// standard (organization_id is null) with its requirement count, and now
+// offers two ways to add one: parsing a PDF via AI (PdfStandardParser) or
+// pasting JSON directly (ImportStandardForm) — both commit through the
+// same importStandard() action.
 
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { createAdminClient } from '@/lib/supabase/admin-client'
 import { ImportStandardForm } from './ImportStandardForm'
+import { PdfStandardParser } from '@/components/admin/PdfStandardParser'
 
 type StandardRow = {
   id: string
@@ -88,7 +91,14 @@ export default async function StandardsPage() {
       </div>
 
       <div>
-        <h2 className="text-lg font-semibold text-slate-800 mb-3">Import a standard</h2>
+        <h2 className="mb-3 text-lg font-semibold text-slate-800">Add a standard</h2>
+        <PdfStandardParser />
+
+        <div className="mb-3 flex items-center gap-3 text-xs font-medium uppercase tracking-wide text-slate-400">
+          <div className="h-px flex-1 bg-slate-200" />
+          Or paste JSON directly
+          <div className="h-px flex-1 bg-slate-200" />
+        </div>
         <p className="text-sm text-slate-500 mb-3">
           Paste a JSON object with "code", "name", and a nested "requirements" array (each
           requirement can have "code", "title", "description", "risk_weight", and "children").
