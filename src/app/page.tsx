@@ -1,14 +1,16 @@
 // File Path: /src/app/page.tsx
-// Status: NEW FILE
-// Description: Placeholder home page so the App Router has a root route to
-//              build against. Replace with the real landing/dashboard page
-//              once the Compliance Dashboard (Phase 2) is built.
+// Status: UPDATE
+// Description: Public landing page. Replaces the Phase-1 placeholder.
+// Currently just the Hero section — Pain vs. Solution, Feature Highlights,
+// Trust & Compliance, Pricing, and Footer come in the next batches per the
+// landing page spec.
+
+import { Hero } from '@/components/marketing/Hero'
 
 export default function HomePage() {
   return (
-    <main style={{ padding: '2rem', fontFamily: 'sans-serif' }}>
-      <h1>AI QMS</h1>
-      <p>Project foundation is live. Dashboard coming next.</p>
+    <main>
+      <Hero />
     </main>
   )
 }
