@@ -1,13 +1,16 @@
 // File Path: /src/app/admin/tenants/page.tsx
-// Status: NEW FILE
+// Status: UPDATE
 // Description: Owner Dashboard tenant list. Shows every organization with
 // its status and creation date, with a suspend/activate action per row.
-// Server component, data fetched via the service-role client so all orgs
-// are visible regardless of RLS. Depends on setTenantStatus in ./actions.ts.
+// Now also hosts CreateCustomerForm above the table, so a new customer
+// (organization + first user) can be created directly here instead of via
+// the Supabase dashboard. Server component, data fetched via the
+// service-role client so all orgs are visible regardless of RLS.
 
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { createAdminClient } from '@/lib/supabase/admin-client'
 import { setTenantStatus } from './actions'
+import { CreateCustomerForm } from '@/components/admin/CreateCustomerForm'
 
 type Organization = {
   id: string
@@ -38,6 +41,8 @@ export default async function TenantsPage() {
   return (
     <div className="p-8">
       <h1 className="text-2xl font-semibold text-slate-800 mb-6">Tenants</h1>
+
+      <CreateCustomerForm organizations={orgs.map((o) => ({ id: o.id, name: o.name }))} />
 
       <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
         <table className="min-w-full divide-y divide-slate-200">
