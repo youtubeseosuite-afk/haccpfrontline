@@ -1,12 +1,11 @@
 // File Path: /src/components/layout/AppShell.tsx
 // Status: UPDATE
-// Description: Authenticated app chrome — a collapsible left sidebar plus a
-// top nav bar, wrapping page content. Now used by both the (app) route
-// group and /admin/layout.tsx, so when isAdmin is true the sidebar shows
-// the three Owner Dashboard sections (Tenants, AI Usage, Standards)
-// alongside Dashboard, instead of one generic "Admin" link. Client
-// component so the collapse state and sign-out button work; the auth check
-// itself stays server-side wherever this is used.
+// Description: Authenticated app chrome — collapsible sidebar + top nav.
+// Now accepts enabledModules (module keys the org has access to, e.g.
+// 'risk_analysis') and maps them to nav items via MODULE_NAV_ITEMS, so
+// adding a future module's nav entry is just one line in that lookup, not
+// a new prop. Admin nav (Tenants/AI Usage/Standards) takes priority over
+// module nav when isAdmin is true, matching the existing admin experience.
 
 'use client'
 
@@ -31,23 +30,35 @@ const ADMIN_NAV_ITEMS: NavItem[] = [
   { label: 'Standards', href: '/admin/standards' },
 ]
 
+const MODULE_NAV_ITEMS: Record<string, NavItem> = {
+  risk_analysis: { label: 'Risk Analysis', href: '/risk-analysis' },
+}
+
 export function AppShell({
   children,
   userEmail,
   organizationName,
   isAdmin = false,
+  enabledModules = [],
 }: {
   children: ReactNode
   userEmail: string
   organizationName?: string
   isAdmin?: boolean
+  enabledModules?: string[]
 }) {
   const [collapsed, setCollapsed] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
 
-  const navItems = isAdmin ? [...BASE_NAV_ITEMS, ...ADMIN_NAV_ITEMS] : BASE_NAV_ITEMS
+  const moduleNavItems = enabledModules
+    .map((key) => MODULE_NAV_ITEMS[key])
+    .filter((item): item is NavItem => !!item)
+
+  const navItems = isAdmin
+    ? [...BASE_NAV_ITEMS, ...ADMIN_NAV_ITEMS]
+    : [...BASE_NAV_ITEMS, ...moduleNavItems]
 
   async function handleSignOut() {
     await supabase.auth.signOut()
