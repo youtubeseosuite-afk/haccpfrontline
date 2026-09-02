@@ -34,7 +34,7 @@ export function Hero() {
 
         <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-slate-600">
           The first AI-powered QMS that finds gaps in your documentation before the auditor
-          does. Secure, local, and industry-specific.
+          does. Encrypted, access-controlled, and industry-specific.
         </p>
 
         <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
