@@ -1,16 +1,17 @@
 // File Path: /src/app/admin/tenants/page.tsx
 // Status: UPDATE
 // Description: Owner Dashboard tenant list. Shows every organization with
-// its status and creation date, with a suspend/activate action per row.
-// Now also hosts CreateCustomerForm above the table, so a new customer
-// (organization + first user) can be created directly here instead of via
-// the Supabase dashboard. Server component, data fetched via the
-// service-role client so all orgs are visible regardless of RLS.
+// its status, creation date, a suspend/activate action, and now a Risk
+// Analysis module toggle per row (RiskModuleToggle) — enable/disable plus
+// choice of methodology, generic across any future optional module. Also
+// hosts CreateCustomerForm above the table. Server component, data fetched
+// via the service-role client so all orgs are visible regardless of RLS.
 
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { createAdminClient } from '@/lib/supabase/admin-client'
 import { setTenantStatus } from './actions'
 import { CreateCustomerForm } from '@/components/admin/CreateCustomerForm'
+import { RiskModuleToggle } from '@/components/admin/RiskModuleToggle'
 
 type Organization = {
   id: string
@@ -38,6 +39,15 @@ export default async function TenantsPage() {
 
   const orgs = (organizations ?? []) as Organization[]
 
+  const { data: moduleRows } = await supabase
+    .from('organization_modules')
+    .select('organization_id, config')
+    .eq('module_key', 'risk_analysis')
+
+  const riskModuleByOrg = new Map(
+    (moduleRows ?? []).map((row) => [row.organization_id as string, row.config as { methodology?: string }])
+  )
+
   return (
     <div className="p-8">
       <h1 className="text-2xl font-semibold text-slate-800 mb-6">Tenants</h1>
@@ -56,6 +66,9 @@ export default async function TenantsPage() {
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide">
                 Created
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wide">
+                Risk Analysis
               </th>
               <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wide">
                 Action
@@ -79,6 +92,12 @@ export default async function TenantsPage() {
                 </td>
                 <td className="px-4 py-3 text-sm text-slate-500">
                   {new Date(org.created_at).toLocaleDateString()}
+                </td>
+                <td className="px-4 py-3">
+                  <RiskModuleToggle
+                    organizationId={org.id}
+                    config={riskModuleByOrg.get(org.id) ?? null}
+                  />
                 </td>
                 <td className="px-4 py-3 text-right">
                   <form
@@ -106,7 +125,7 @@ export default async function TenantsPage() {
             ))}
             {orgs.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-sm text-slate-500">
+                <td colSpan={5} className="px-4 py-6 text-center text-sm text-slate-500">
                   No organizations yet.
                 </td>
               </tr>
