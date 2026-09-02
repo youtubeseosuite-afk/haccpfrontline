@@ -26,8 +26,8 @@ const OLD_WAY = [
 
 const NEW_WAY = [
   {
-    title: 'Local Sync Agent',
-    detail: 'Your documents stay on your server. Nothing leaves your control.',
+    title: 'Encrypted, isolated storage',
+    detail: 'Every document encrypted at rest and in transit, strictly isolated to your company.',
   },
   {
     title: 'Automated AI Gap Analysis',
