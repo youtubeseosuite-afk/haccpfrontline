@@ -1,17 +1,18 @@
 // File Path: /src/app/admin/tenants/page.tsx
 // Status: UPDATE
 // Description: Owner Dashboard tenant list. Shows every organization with
-// its status, creation date, a suspend/activate action, and now a Risk
-// Analysis module toggle per row (RiskModuleToggle) — enable/disable plus
-// choice of methodology, generic across any future optional module. Also
-// hosts CreateCustomerForm above the table. Server component, data fetched
-// via the service-role client so all orgs are visible regardless of RLS.
+// its status, creation date, a Risk Analysis module toggle, a Sync Token
+// manager (SyncTokenManager) for the Local Sync Agent, and a
+// suspend/activate action. Also hosts CreateCustomerForm above the table.
+// Server component, data fetched via the service-role client so all orgs
+// are visible regardless of RLS.
 
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { createAdminClient } from '@/lib/supabase/admin-client'
 import { setTenantStatus } from './actions'
 import { CreateCustomerForm } from '@/components/admin/CreateCustomerForm'
 import { RiskModuleToggle } from '@/components/admin/RiskModuleToggle'
+import { SyncTokenManager } from '@/components/admin/SyncTokenManager'
 
 type Organization = {
   id: string
@@ -48,6 +49,19 @@ export default async function TenantsPage() {
     (moduleRows ?? []).map((row) => [row.organization_id as string, row.config as { methodology?: string }])
   )
 
+  const { data: tokenRows } = await supabase
+    .from('sync_tokens')
+    .select('id, organization_id, label, created_at')
+    .is('revoked_at', null)
+    .order('created_at', { ascending: false })
+
+  const tokensByOrg = new Map<string, { id: string; label: string | null; created_at: string }[]>()
+  for (const row of tokenRows ?? []) {
+    const list = tokensByOrg.get(row.organization_id as string) ?? []
+    list.push({ id: row.id, label: row.label, created_at: row.created_at })
+    tokensByOrg.set(row.organization_id as string, list)
+  }
+
   return (
     <div className="p-8">
       <h1 className="text-2xl font-semibold text-slate-800 mb-6">Tenants</h1>
@@ -70,6 +84,9 @@ export default async function TenantsPage() {
               <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wide">
                 Risk Analysis
               </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide">
+                Sync Token
+              </th>
               <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wide">
                 Action
               </th>
@@ -78,8 +95,8 @@ export default async function TenantsPage() {
           <tbody className="divide-y divide-slate-100">
             {orgs.map((org) => (
               <tr key={org.id}>
-                <td className="px-4 py-3 text-sm text-slate-800">{org.name}</td>
-                <td className="px-4 py-3 text-sm">
+                <td className="px-4 py-3 text-sm text-slate-800 align-top">{org.name}</td>
+                <td className="px-4 py-3 text-sm align-top">
                   <span
                     className={
                       org.status === 'active'
@@ -90,16 +107,22 @@ export default async function TenantsPage() {
                     {org.status}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-sm text-slate-500">
+                <td className="px-4 py-3 text-sm text-slate-500 align-top">
                   {new Date(org.created_at).toLocaleDateString()}
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 align-top">
                   <RiskModuleToggle
                     organizationId={org.id}
                     config={riskModuleByOrg.get(org.id) ?? null}
                   />
                 </td>
-                <td className="px-4 py-3 text-right">
+                <td className="px-4 py-3 align-top w-64">
+                  <SyncTokenManager
+                    organizationId={org.id}
+                    tokens={tokensByOrg.get(org.id) ?? []}
+                  />
+                </td>
+                <td className="px-4 py-3 text-right align-top">
                   <form
                     action={async () => {
                       'use server'
@@ -125,7 +148,7 @@ export default async function TenantsPage() {
             ))}
             {orgs.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-sm text-slate-500">
+                <td colSpan={6} className="px-4 py-6 text-center text-sm text-slate-500">
                   No organizations yet.
                 </td>
               </tr>
