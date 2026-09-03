@@ -1,15 +1,15 @@
 // File Path: /src/app/(app)/risk-analysis/page.tsx
-// Status: NEW FILE
+// Status: UPDATE
 // Description: Risk register. Gated by the risk_analysis module
 // entitlement — orgs without it see a friendly explanation instead of a
-// 404, since a customer noticing this route should learn it's an add-on,
-// not hit a dead end. Lists existing risks ordered by score, labeled with
-// the org's chosen methodology. The "Add risk" form (methodology-aware) is
-// the next piece to wire in.
+// 404. Now renders RiskForm above the table so risks can actually be
+// added, methodology-aware based on the org's module config. Lists
+// existing risks ordered by score.
 
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { getModuleConfig } from '@/lib/modules/hasModule'
+import { RiskForm } from '@/components/risk-analysis/RiskForm'
 
 type Risk = {
   id: string
@@ -74,7 +74,9 @@ export default async function RiskAnalysisPage() {
     )
   }
 
-  const methodology = (config.methodology as string) ?? 'simple_matrix'
+  const methodology = ((config.methodology as string) ?? 'simple_matrix') as
+    | 'simple_matrix'
+    | 'fmea'
 
   const { data: risks } = await supabase
     .from('risks')
@@ -97,6 +99,8 @@ export default async function RiskAnalysisPage() {
             : 'Simple Matrix (Likelihood × Severity)'}
         </p>
       </div>
+
+      <RiskForm organizationId={organizationId} methodology={methodology} />
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <table className="min-w-full divide-y divide-slate-200">
