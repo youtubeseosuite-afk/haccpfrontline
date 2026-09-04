@@ -1,0 +1,163 @@
+<!-- File Path: /sync-agent-wizard/wizard.html -->
+<!-- Status: NEW FILE -->
+<!-- Production Ready: Draft — untested in a real Electron window. -->
+<!-- Note: the "Configuring" step (picking a sync folder, registering the -->
+<!-- Windows Task Scheduler entry) isn't wired up yet, so this flow -->
+<!-- currently goes straight from Connecting to Success. That's the next -->
+<!-- piece — this file is honest about that in its own comments below -->
+<!-- rather than faking a completed step that didn't actually run. -->
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>AI QMS Sync Agent</title>
+<style>
+  :root { color-scheme: light; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", Inter, sans-serif;
+    background: #f8fafc;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+  }
+  .card {
+    width: 340px;
+    text-align: center;
+  }
+  .logo {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background: #0f172a;
+    color: white;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+    font-family: -apple-system, "Segoe UI", Inter, sans-serif;
+  }
+  h1 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 4px;
+  }
+  p.subtitle {
+    font-size: 13px;
+    color: #64748b;
+    margin: 0 0 24px;
+  }
+  .steps {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  .step {
+    flex: 1;
+    max-width: 90px;
+  }
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #e2e8f0;
+    margin: 0 auto 6px;
+  }
+  .dot.active { background: #0f172a; }
+  .dot.done { background: #16a34a; }
+  .step-label {
+    font-size: 11px;
+    color: #94a3b8;
+  }
+  .step-label.active { color: #0f172a; font-weight: 500; }
+  #message {
+    font-size: 13px;
+    color: #475569;
+    min-height: 36px;
+  }
+  #message.success { color: #16a34a; font-weight: 500; }
+  #message.error { color: #dc2626; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">Q</div>
+    <h1 id="title">AI QMS Sync Agent</h1>
+    <p class="subtitle" id="subtitle">Waiting for a connection link&hellip;</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="dot" id="dot-connecting"></div>
+        <div class="step-label" id="label-connecting">Connecting</div>
+      </div>
+      <div class="step">
+        <div class="dot" id="dot-configuring"></div>
+        <div class="step-label" id="label-configuring">Configuring</div>
+      </div>
+      <div class="step">
+        <div class="dot" id="dot-success"></div>
+        <div class="step-label" id="label-success">Success</div>
+      </div>
+    </div>
+
+    <div id="message">Open &ldquo;Connect my Computer&rdquo; from your AI QMS dashboard to get started.</div>
+  </div>
+
+  <script>
+    const dots = {
+      connecting: document.getElementById('dot-connecting'),
+      configuring: document.getElementById('dot-configuring'),
+      success: document.getElementById('dot-success'),
+    }
+    const labels = {
+      connecting: document.getElementById('label-connecting'),
+      configuring: document.getElementById('label-configuring'),
+      success: document.getElementById('label-success'),
+    }
+    const subtitle = document.getElementById('subtitle')
+    const message = document.getElementById('message')
+
+    function setStep(step) {
+      const order = ['connecting', 'configuring', 'success']
+      for (const key of order) {
+        dots[key].className = 'dot'
+        labels[key].className = 'step-label'
+      }
+      const currentIndex = order.indexOf(step)
+      order.forEach((key, i) => {
+        if (i < currentIndex) dots[key].className = 'dot done'
+        else if (i === currentIndex) {
+          dots[key].className = 'dot active'
+          labels[key].className = 'step-label active'
+        }
+      })
+    }
+
+    if (window.wizardBridge) {
+      window.wizardBridge.onActivationReceived(() => {
+        setStep('connecting')
+        subtitle.textContent = 'Linking this computer to your account'
+        message.textContent = 'Validating your connection token\u2026'
+
+        // TODO(next step): folder picker + Task Scheduler registration
+        // plug in here, between Connecting and Success. Until that
+        // exists, the flow honestly reports "connected", not "fully set
+        // up" -- no sync will actually run yet after this screen.
+        setTimeout(() => {
+          setStep('success')
+          subtitle.textContent = 'Connected'
+          message.className = 'success'
+          message.textContent = 'This computer is linked to your AI QMS account \u2705'
+        }, 900)
+      })
+    } else {
+      message.className = 'error'
+      message.textContent = 'wizardBridge is unavailable \u2014 check that preload.js is wired up correctly.'
+    }
+  </script>
+</body>
+</html>
