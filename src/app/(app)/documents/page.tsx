@@ -1,14 +1,16 @@
 // File Path: /src/app/(app)/documents/page.tsx
-// Status: NEW FILE
-// Description: DMS entry point — the Document Library. Lists every document
-// for the org (synced by the Local Agent or uploaded here directly) with
-// its type, status, chapter tag, and version count. Hosts the upload form.
-// Approve and Download actions are wired via DocumentActions.
+// Status: UPDATE
+// Description: DMS entry point — the Document Library. Lists every
+// document for the org (synced by the Local Sync Agent or uploaded here
+// directly) with its type, status, chapter tag, and version count. Hosts
+// the upload form, per-row Approve/Download actions, and now
+// ConnectComputerButton for the Local Sync Agent's Magic Link activation.
 
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { DocumentUploadForm } from '@/components/documents/DocumentUploadForm'
 import { DocumentActions } from '@/components/documents/DocumentActions'
+import { ConnectComputerButton } from '@/components/documents/ConnectComputerButton'
 
 type DocumentRow = {
   id: string
@@ -68,8 +70,8 @@ export default async function DocumentsPage() {
   const rows = (documents ?? []) as DocumentRow[]
 
   return (
-    <div className="p-8">
-      <div className="mb-6 flex items-center justify-between">
+    <div className="p-8 space-y-6">
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Documents</h1>
           <p className="mt-1 text-sm text-slate-500">
@@ -78,6 +80,8 @@ export default async function DocumentsPage() {
         </div>
         <DocumentUploadForm organizationId={organizationId} />
       </div>
+
+      <ConnectComputerButton />
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <table className="min-w-full divide-y divide-slate-200">
