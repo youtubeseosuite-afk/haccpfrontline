@@ -27,17 +27,30 @@ let windowReady = false
 let pendingActivation = null
 
 function registerProtocolHandler() {
+  console.log('[wizard] process.defaultApp:', process.defaultApp)
+  console.log('[wizard] process.argv:', process.argv)
+
+  let registered
   if (process.defaultApp) {
-    // Running via "electron ." in dev — point the registration at the
-    // actual Electron binary and this script, or Windows can't correctly
-    // relaunch the app from the registry entry it creates.
     if (process.argv.length >= 2) {
-      app.setAsDefaultProtocolClient(PROTOCOL, process.execPath, [
+      registered = app.setAsDefaultProtocolClient(PROTOCOL, process.execPath, [
         path.resolve(process.argv[1]),
       ])
+    } else {
+      console.error(
+        '[wizard] Skipped registration: process.argv.length < 2, so there was no app path to register against.'
+      )
+      return
     }
   } else {
-    app.setAsDefaultProtocolClient(PROTOCOL)
+    registered = app.setAsDefaultProtocolClient(PROTOCOL)
+  }
+
+  console.log(`[wizard] setAsDefaultProtocolClient('${PROTOCOL}') returned:`, registered)
+  if (!registered) {
+    console.error(
+      '[wizard] Registration reported failure. Common cause on Windows: another process (or a previous failed run) already holds a conflicting registration for this protocol.'
+    )
   }
 }
 
