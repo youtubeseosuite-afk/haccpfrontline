@@ -2,15 +2,12 @@
 // Status: UPDATE
 // Description: DMS entry point — the Document Library. Lists every
 // document for the org with its type, status, chapter tag, and version
-// count. Hosts the upload form and per-row Approve/Download actions.
-// ConnectComputerButton removed — the Sync Agent path (local text
-// extraction, .bat download, token-based sync) has been abandoned in
-// favor of the plain upload flow, since gap analysis works identically
-// either way regardless of how a document reaches Supabase. The backend
-// pieces (api/sync/*, sync-agent/, sync-agent-wizard/,
-// public/sync-agent-files/, the sync_tokens table) are now dead code —
-// left in place rather than torn out, since nothing references them
-// anymore and they're harmless sitting unused.
+// count. Hosts the upload form and per-row Approve/Download actions. Fix:
+// the documents query never checked for an error — if it failed for any
+// reason (RLS, schema mismatch, anything), the page silently rendered "No
+// documents yet" exactly as if there were genuinely none, with zero
+// indication anything had gone wrong. Now surfaces that error explicitly
+// instead of masking it as an empty state.
 
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
@@ -46,24 +43,37 @@ export default async function DocumentsPage() {
     redirect('/login')
   }
 
-  const { data: membership } = await supabase
+  const { data: membership, error: membershipError } = await supabase
     .from('organization_members')
     .select('organization_id')
     .eq('user_id', user.id)
     .limit(1)
     .maybeSingle()
 
+  if (membershipError) {
+    return (
+      <div className="p-8">
+        <p className="text-sm text-red-600">
+          Failed to look up your organization: {membershipError.message}
+        </p>
+      </div>
+    )
+  }
+
   if (!membership) {
     return (
       <div className="p-8">
-        <p className="text-sm text-slate-500">You are not a member of any organization yet.</p>
+        <p className="text-sm text-slate-500">
+          You are not a member of any organization yet. (Signed in as {user.email}, user id{' '}
+          {user.id})
+        </p>
       </div>
     )
   }
 
   const organizationId = membership.organization_id
 
-  const { data: documents } = await supabase
+  const { data: documents, error: documentsError } = await supabase
     .from('documents')
     .select(
       `id, title, document_type, chapter_number, status, current_version_id, created_at, updated_at,
@@ -71,6 +81,16 @@ export default async function DocumentsPage() {
     )
     .eq('organization_id', organizationId)
     .order('updated_at', { ascending: false })
+
+  if (documentsError) {
+    return (
+      <div className="p-8">
+        <p className="text-sm text-red-600">
+          Failed to load documents (organization {organizationId}): {documentsError.message}
+        </p>
+      </div>
+    )
+  }
 
   const rows = (documents ?? []) as DocumentRow[]
 
@@ -149,7 +169,7 @@ export default async function DocumentsPage() {
             {rows.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-6 text-center text-sm text-slate-500">
-                  No documents yet — upload one to get started.
+                  No documents yet — upload one to get started. (Organization: {organizationId})
                 </td>
               </tr>
             )}
