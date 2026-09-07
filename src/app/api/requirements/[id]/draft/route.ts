@@ -11,11 +11,17 @@
 //              same bug the manual upload route had. Without it, the
 //              drafted document showed "No file" in the Document Library
 //              (Approve/Download didn't render) and was invisible to
-//              future gap-analysis runs on that requirement.
+//              future gap-analysis runs on that requirement. Fix: read the
+//              response text via extractClaudeText() instead of assuming
+//              content[0] is always the text block — a 'thinking' block
+//              appearing first made content[0].text undefined, causing
+//              "Draft generation returned no content" even on a
+//              successful Claude call.
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { logAiUsage } from '@/lib/ai/logAiUsage'
+import { extractClaudeText } from '@/lib/ai/extractClaudeText'
 
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL
 
@@ -93,7 +99,7 @@ ${requirement.description ?? ''}`
   }
 
   const anthropicBody = await anthropicResponse.json()
-  const draftText: string = anthropicBody.content?.[0]?.text ?? ''
+  const draftText: string = extractClaudeText(anthropicBody.content)
 
   await logAiUsage({
     organizationId,
