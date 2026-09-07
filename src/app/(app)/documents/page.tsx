@@ -2,12 +2,16 @@
 // Status: UPDATE
 // Description: DMS entry point — the Document Library. Lists every
 // document for the org with its type, status, chapter tag, and version
-// count. Hosts the upload form and per-row Approve/Download actions. Fix:
-// the documents query never checked for an error — if it failed for any
-// reason (RLS, schema mismatch, anything), the page silently rendered "No
-// documents yet" exactly as if there were genuinely none, with zero
-// indication anything had gone wrong. Now surfaces that error explicitly
-// instead of masking it as an empty state.
+// count. Hosts the upload form and per-row Approve/Download actions.
+// Root cause found and fixed: the document_versions embed was ambiguous
+// to PostgREST — documents and document_versions are connected by TWO
+// foreign keys (document_versions.document_id, and
+// documents.current_version_id), so "which relationship do you mean"
+// failed on every single request. This has likely been broken since the
+// very first document was ever created; it only looked like "no
+// documents" because the query's error was never checked (see the other
+// fix below). Now explicitly hints document_versions!document_id to
+// disambiguate.
 
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
@@ -77,7 +81,7 @@ export default async function DocumentsPage() {
     .from('documents')
     .select(
       `id, title, document_type, chapter_number, status, current_version_id, created_at, updated_at,
-       document_versions(id, version_number, status, uploaded_at)`
+       document_versions!document_id(id, version_number, status, uploaded_at)`
     )
     .eq('organization_id', organizationId)
     .order('updated_at', { ascending: false })
