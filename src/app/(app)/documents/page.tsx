@@ -15,6 +15,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { DocumentUploadForm } from '@/components/documents/DocumentUploadForm'
 import { DocumentActions } from '@/components/documents/DocumentActions'
 
@@ -138,7 +139,12 @@ export default async function DocumentsPage() {
             {rows.map((doc) => (
               <tr key={doc.id}>
                 <td className="px-4 py-3 text-sm text-slate-900">
-                  {doc.title}
+                  <Link
+                    href={`/documents/${doc.id}`}
+                    className="font-medium text-slate-900 hover:text-slate-600 hover:underline"
+                  >
+                    {doc.title}
+                  </Link>
                   {doc.chapter_number && (
                     <span className="ml-2 text-xs text-slate-400">Ch. {doc.chapter_number}</span>
                   )}
