@@ -1,0 +1,17 @@
+{
+  "name": "aiqms-sync-agent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local Sync Agent for AI QMS \u2014 extracts document text locally and syncs it to your AI QMS account.",
+  "main": "sync.js",
+  "scripts": {
+    "sync": "node sync.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "pdf-parse": "^1.1.1",
+    "mammoth": "^1.8.0"
+  }
+}
