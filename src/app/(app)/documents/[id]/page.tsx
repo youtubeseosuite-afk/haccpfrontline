@@ -1,17 +1,16 @@
 // File Path: /src/app/(app)/documents/[id]/page.tsx
-// Status: NEW FILE
+// Status: UPDATE
 // Description: Document detail page — metadata and full version history
-// for one document. For the current version, if it's text-based
-// (markdown/plain text — AI drafts or plain-text uploads), fetches and
-// displays its content directly. PDF/DOCX versions show a download link
-// instead, since there's no meaningful way to preview those inline. This
-// is read-only for now — the actual editor (a real textarea + Save, and
-// the "replace file" control, both wired to actions.ts) is the next
-// piece built on top of this.
+// for one document. Text-based versions (AI drafts, plain text/markdown)
+// render DocumentEditor, a real editable textarea that saves as a new
+// version. PDF/DOCX versions get a download link plus ReplaceFileControl
+// instead, since in-browser editing isn't realistic for binary formats.
 
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
+import { DocumentEditor } from './DocumentEditor'
+import { ReplaceFileControl } from './ReplaceFileControl'
 
 const TEXT_MIME_TYPES = ['text/markdown', 'text/plain']
 
@@ -94,22 +93,28 @@ export default async function DocumentDetailPage({ params }: { params: { id: str
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
               Current version
             </h2>
-            {textContent !== null ? (
-              <pre className="whitespace-pre-wrap rounded-md bg-slate-50 p-4 text-sm text-slate-700">
-                {textContent}
-              </pre>
+            {textContent !== null && currentVersion ? (
+              <DocumentEditor
+                documentId={document.id}
+                organizationId={organizationId}
+                initialContent={textContent}
+                fileName={currentVersion.file_name}
+              />
             ) : currentVersion ? (
-              <p className="text-sm text-slate-500">
-                {currentVersion.file_name} is a {currentVersion.mime_type} file — preview isn&rsquo;t
-                available for this type.{' '}
-                <a
-                  href={`/api/documents/${document.id}/download`}
-                  className="font-medium text-slate-700 hover:text-slate-900"
-                >
-                  Download it
-                </a>{' '}
-                instead.
-              </p>
+              <div>
+                <p className="text-sm text-slate-500">
+                  {currentVersion.file_name} is a {currentVersion.mime_type} file — preview
+                  isn&rsquo;t available for this type.{' '}
+                  <a
+                    href={`/api/documents/${document.id}/download`}
+                    className="font-medium text-slate-700 hover:text-slate-900"
+                  >
+                    Download it
+                  </a>{' '}
+                  instead.
+                </p>
+                <ReplaceFileControl documentId={document.id} organizationId={organizationId} />
+              </div>
             ) : (
               <p className="text-sm text-slate-500">No file uploaded yet.</p>
             )}
