@@ -1,14 +1,21 @@
 // File Path: /src/app/api/requirements/[id]/draft/route.ts
-// Status: NEW FILE
+// Status: UPDATE
 // Description: AI-Drafting (Phase 4) — generates a complete draft procedure
 //              document for a requirement via Claude, stores it as a new
 //              document + first version (status='draft', pending human
 //              review), and links it to the requirement as a 'planned'
 //              evidence mapping so the gap shows as in-progress instead of
-//              untouched.
+//              untouched. Logs the Claude call to ai_usage_events for the
+//              Owner Dashboard cost monitor. Fix: never set
+//              documents.current_version_id after creating the version —
+//              same bug the manual upload route had. Without it, the
+//              drafted document showed "No file" in the Document Library
+//              (Approve/Download didn't render) and was invisible to
+//              future gap-analysis runs on that requirement.
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { logAiUsage } from '@/lib/ai/logAiUsage'
 
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL
 
@@ -87,6 +94,15 @@ ${requirement.description ?? ''}`
 
   const anthropicBody = await anthropicResponse.json()
   const draftText: string = anthropicBody.content?.[0]?.text ?? ''
+
+  await logAiUsage({
+    organizationId,
+    eventType: 'ai_draft',
+    model: ANTHROPIC_MODEL,
+    inputTokens: anthropicBody.usage?.input_tokens ?? 0,
+    outputTokens: anthropicBody.usage?.output_tokens ?? 0,
+    userId: user.id,
+  })
 
   if (!draftText.trim()) {
     return NextResponse.json({ error: 'Draft generation returned no content' }, { status: 502 })
@@ -168,5 +184,21 @@ ${requirement.description ?? ''}`
     { onConflict: 'requirement_id,document_id' }
   )
 
-  return NextResponse.json({ document, version }, { status: 201 })
+  const { error: pointerError } = await supabase
+    .from('documents')
+    .update({ current_version_id: version.id })
+    .eq('id', document.id)
+
+  if (pointerError) {
+    // The document and version both exist and are individually usable —
+    // don't roll back a successful draft over this. Just surface it, since
+    // without current_version_id the doc will show "No file" in the
+    // Document Library and won't be findable by future gap-analysis runs.
+    console.error('Failed to set current_version_id on AI draft:', pointerError.message)
+  }
+
+  return NextResponse.json(
+    { document: { ...document, current_version_id: version.id }, version },
+    { status: 201 }
+  )
 }
