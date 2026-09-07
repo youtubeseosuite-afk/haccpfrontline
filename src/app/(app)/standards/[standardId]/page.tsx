@@ -1,15 +1,16 @@
 // File Path: /src/app/(app)/standards/[standardId]/page.tsx
-// Status: NEW FILE
+// Status: UPDATE
 // Description: Server-rendered page for one standard's checklist. Fetches
 // the requirement tree, the org's documents, and any existing evidence
-// mappings, then hands them to the accordion mapping panel. Moved under the
-// (app) route group so it renders inside AppShell — delete the old
-// src/app/standards/[standardId]/page.tsx or the build will fail with a
-// duplicate route, same as the dashboard move.
+// mappings, then hands them to the accordion mapping panel. Now also
+// renders AutoMapButton above the panel, so unmapped requirements can get
+// an AI-suggested document match before the customer works through them
+// by hand.
 
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { RequirementMappingPanel } from '@/components/evidence-mapping/RequirementMappingPanel'
+import { AutoMapButton } from '@/components/evidence-mapping/AutoMapButton'
 
 export default async function StandardMappingPage({
   params,
@@ -88,6 +89,8 @@ export default async function StandardMappingPage({
         </h1>
         <p className="text-sm text-slate-500">{standard?.code}</p>
       </div>
+
+      <AutoMapButton standardId={params.standardId} organizationId={organizationId} />
 
       <RequirementMappingPanel
         organizationId={organizationId}
