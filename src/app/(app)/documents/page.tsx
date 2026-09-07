@@ -1,16 +1,21 @@
 // File Path: /src/app/(app)/documents/page.tsx
 // Status: UPDATE
 // Description: DMS entry point — the Document Library. Lists every
-// document for the org (synced by the Local Sync Agent or uploaded here
-// directly) with its type, status, chapter tag, and version count. Hosts
-// the upload form, per-row Approve/Download actions, and now
-// ConnectComputerButton for the Local Sync Agent's Magic Link activation.
+// document for the org with its type, status, chapter tag, and version
+// count. Hosts the upload form and per-row Approve/Download actions.
+// ConnectComputerButton removed — the Sync Agent path (local text
+// extraction, .bat download, token-based sync) has been abandoned in
+// favor of the plain upload flow, since gap analysis works identically
+// either way regardless of how a document reaches Supabase. The backend
+// pieces (api/sync/*, sync-agent/, sync-agent-wizard/,
+// public/sync-agent-files/, the sync_tokens table) are now dead code —
+// left in place rather than torn out, since nothing references them
+// anymore and they're harmless sitting unused.
 
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { DocumentUploadForm } from '@/components/documents/DocumentUploadForm'
 import { DocumentActions } from '@/components/documents/DocumentActions'
-import { ConnectComputerButton } from '@/components/documents/ConnectComputerButton'
 
 type DocumentRow = {
   id: string
@@ -75,13 +80,11 @@ export default async function DocumentsPage() {
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Documents</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Files synced by the Local Agent, plus anything uploaded here directly
+            Every document for your organization
           </p>
         </div>
         <DocumentUploadForm organizationId={organizationId} />
       </div>
-
-      <ConnectComputerButton />
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <table className="min-w-full divide-y divide-slate-200">
@@ -146,7 +149,7 @@ export default async function DocumentsPage() {
             {rows.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-6 text-center text-sm text-slate-500">
-                  No documents yet — upload one, or install the Local Agent to sync your folder.
+                  No documents yet — upload one to get started.
                 </td>
               </tr>
             )}
